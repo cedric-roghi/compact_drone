@@ -1,6 +1,10 @@
 # compact_drone
 compact contra rotating drone
 
+program command
+
+dfu-util -a 0 -s 0x08000000:leave -D build/debug/Drone_Code.bin
+
 ## Table of Contents
 - [Requirements](#requirements)
 - [Rationale](#rationale)

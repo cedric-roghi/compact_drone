@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/cedric/Documents/Personal_Projects/compact_drone/build/cmake_install.cmake",
+		"/home/cedric/Documents/Personal_Projects/compact_drone/build/cmake/stm32cubemx/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

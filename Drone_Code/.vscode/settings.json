@@ -1,0 +1,16 @@
+{
+    "cortex-debug.armToolchainPath": "/home/cedric/.config/VSCodium/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/arm-none-eabi-gcc/14.2.1-1.1.1/.content/bin",
+    "cortex-debug.openocdPath": "/home/cedric/.config/VSCodium/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/openocd/0.12.0-7.1/.content/bin/openocd",
+    "cmake.sourceDirectory": "/home/cedric/Documents/Personal_Projects/compact_drone/Drone_Code/cmake/stm32cubemx",
+    "cmake.modifyLists.sourceVariables": [
+        "SRC",
+        "SRCS",
+        "SOURCES",
+        "SOURCE_FILES",
+        "*_SRC",
+        "*_SRCS",
+        "*_SOURCES",
+        "*_SOURCE_FILES",
+        "APP"
+    ]
+}
