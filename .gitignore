@@ -43,3 +43,10 @@
 *.history
 
 .history
+
+*.bin
+*.elf
+*.hex
+*.lss
+*.lst
+*.stl
