@@ -144,8 +144,8 @@ extern ADC_HandleTypeDef hadc1;
 uint8_t uart_rx_buffer[64];
 volatile uint16_t uart_rx_flag = 0;
 
-volatile uint32_t g_shared_voltage_mv = 11100;
-volatile uint8_t g_shared_battery_pct = 100;
+volatile uint32_t g_shared_voltage_mv = 0;
+volatile uint8_t g_shared_battery_pct = 0;
 
 volatile float g_yaw_trim = 0.0f; // Trim adjustment between -1.0 and 1.0 to balance motor
 
@@ -262,18 +262,20 @@ void StartDefaultTask(void *argument)
       usb_send("Battery Voltage: %lu.%luV (ADC: %lu)\r\n", voltage_mv / 1000, voltage_mv % 1000, adc_value);
 
       uint8_t battery_pct = 0;
+      // Extended range down to 2.0V (2000 mV) with strict underflow protection
       if (voltage_mv >= 12600) {
         battery_pct = 100;
-      } else if (voltage_mv <= 9900) {
+      } else if (voltage_mv <= 2000) {
         battery_pct = 0;
       } else {
-        battery_pct = (uint8_t)(((float)(voltage_mv - 9900) / (12600.0f - 9900.0f)) * 100.0f);
+        battery_pct = (uint8_t)(((float)(voltage_mv - 2000) / (12600.0f - 2000.0f)) * 100.0f);
       }
 
       g_shared_voltage_mv = voltage_mv;
       g_shared_battery_pct = battery_pct;
 
-      if (adc_value < 3103) {
+      // Warning threshold adjusted for 2V (ADC threshold ~615 based on voltage divider ratio)
+      if (adc_value < 615) {
         if ((osKernelGetTickCount() - lastBlinkTick) >= 250) {
           HAL_GPIO_TogglePin(LED_PORT, RED_LED_PIN);
           lastBlinkTick = osKernelGetTickCount();
@@ -696,4 +698,24 @@ static float map_float(float x, float in_min, float in_max, float out_min, float
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        g_uart_error_count++;
+        
+        // Abort any stuck state and clear error flags
+        HAL_UART_AbortReceive(huart);
+        
+        // Restart IDLE line DMA reception
+        HAL_StatusTypeDef status = HAL_UARTEx_ReceiveToIdle_DMA(huart, uart_rx_buffer, sizeof(uart_rx_buffer));
+        __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+        
+        if (status != HAL_OK)
+        {
+            // Optional debug print if restart fails
+            usb_send("ERROR: UART Error Callback recovery failed: %d\r\n", status);
+        }
+    }
+}
 /* USER CODE END Application */
