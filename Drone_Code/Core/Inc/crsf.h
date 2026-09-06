@@ -77,6 +77,5 @@ typedef struct __attribute__((packed)) {
 // Function Prototypes
 bool crsf_parse_frame(const uint8_t *buffer, uint8_t buffer_size, crsf_frame_t *frame);
 bool crsf_extract_rc_channels(const crsf_frame_t *frame, crsf_rc_channels_packed_t *channels);
-int16_t crsf_convert_channel_to_us(uint16_t channel_value);
-
+bool crsf_generate_battery_frame(uint16_t voltage_mv, uint16_t current_ma, uint32_t capacity_mah, uint8_t remaining_percent, uint8_t *dest_buffer, uint8_t *dest_size);
 #endif // CRSF_H

@@ -113,10 +113,34 @@ bool crsf_extract_rc_channels(const crsf_frame_t *frame, crsf_rc_channels_packed
     return true;
 }
 
-// Convert CRSF channel value (11-bit) to microseconds (1000-2000 range)
-int16_t crsf_convert_channel_to_us(uint16_t channel_value) {
-    // CRSF channel value is 11-bit (0-2047)
-    // CRSF center = 992, 1500us = center
-    // Formula: us = (channel_value - 992) * 5 / 8 + 1500
-    return (int16_t)((channel_value - 992) * 5 / 8) + 1500;
+// Generate CRSF Battery Sensor frame
+bool crsf_generate_battery_frame(uint16_t voltage_mv, uint16_t current_ma, uint32_t capacity_mah, uint8_t remaining_percent, uint8_t *dest_buffer, uint8_t *dest_size) {
+    uint16_t voltage_deci = voltage_mv / 100; // Convert mV to 0.1V (deci-volts)
+    uint16_t current_deci = current_ma / 100; // Convert mA to 0.1A
+    
+    dest_buffer[0] = CRSF_SYNC_BYTE;
+    dest_buffer[1] = 10; // Length: Type (1) + Payload (8) + CRC (1)
+    dest_buffer[2] = CRSF_FRAME_BATTERY_SENSOR;
+    
+    // Voltage (2 bytes, big-endian)
+    dest_buffer[3] = (voltage_deci >> 8) & 0xFF;
+    dest_buffer[4] = voltage_deci & 0xFF;
+    
+    // Current (2 bytes, big-endian)
+    dest_buffer[5] = (current_deci >> 8) & 0xFF;
+    dest_buffer[6] = current_deci & 0xFF;
+    
+    // Capacity consumed (3 bytes, big-endian 24-bit)
+    dest_buffer[7] = (capacity_mah >> 16) & 0xFF;
+    dest_buffer[8] = (capacity_mah >> 8) & 0xFF;
+    dest_buffer[9] = capacity_mah & 0xFF;
+    
+    // Remaining battery percentage (1 byte)
+    dest_buffer[10] = remaining_percent;
+    
+    // Calculate CRC over Type + Payload (9 bytes)
+    dest_buffer[11] = crsf_crc8(&dest_buffer[2], 9);
+    
+    *dest_size = 12;
+    return true;
 }

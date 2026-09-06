@@ -128,16 +128,51 @@ int icm42605_get_agt(ICM42605_t *dev) {
 
     dev->temp = ((float)dev->raw_meas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
 
-    dev->acc[0] = ((dev->raw_meas[1] * dev->accel_scale) - dev->acc_b[0]) * dev->acc_s[0];
-    dev->acc[1] = ((dev->raw_meas[2] * dev->accel_scale) - dev->acc_b[1]) * dev->acc_s[1];
-    dev->acc[2] = ((dev->raw_meas[3] * dev->accel_scale) - dev->acc_b[2]) * dev->acc_s[2];
+    // Temporary variables for raw scaled values before orientation remapping
+    float raw_acc[3], raw_gyr[3];
 
-    dev->gyr[0] = (dev->raw_meas[4] * dev->gyro_scale) - dev->gyr_b[0];
-    dev->gyr[1] = (dev->raw_meas[5] * dev->gyro_scale) - dev->gyr_b[1];
-    dev->gyr[2] = (dev->raw_meas[6] * dev->gyro_scale) - dev->gyr_b[2];
+    raw_acc[0] = ((dev->raw_meas[1] * dev->accel_scale) - dev->acc_b[0]) * dev->acc_s[0];
+    raw_acc[1] = ((dev->raw_meas[2] * dev->accel_scale) - dev->acc_b[1]) * dev->acc_s[1];
+    raw_acc[2] = ((dev->raw_meas[3] * dev->accel_scale) - dev->acc_b[2]) * dev->acc_s[2];
+
+    raw_gyr[0] = (dev->raw_meas[4] * dev->gyro_scale) - dev->gyr_b[0];
+    raw_gyr[1] = (dev->raw_meas[5] * dev->gyro_scale) - dev->gyr_b[1];
+    raw_gyr[2] = (dev->raw_meas[6] * dev->gyro_scale) - dev->gyr_b[2];
+
+    // Remap axes to match your upright board mounting orientation
+    // (Adjust these assignments/signs depending on how your board is physically rotated)
+    dev->acc[0] = raw_acc[2];   
+    dev->acc[1] = raw_acc[1];
+    dev->acc[2] = -raw_acc[0]; 
+
+    dev->gyr[0] = raw_gyr[2];
+    dev->gyr[1] = raw_gyr[1];
+    dev->gyr[2] = -raw_gyr[0];
 
     return 1;
 }
+
+// old code
+// int icm42605_get_agt(ICM42605_t *dev) {
+//     uint8_t buffer[14];
+//     if (read_registers(dev, UB0_REG_TEMP_DATA1, 14, buffer) < 0) return -1;
+
+//     for (int i = 0; i < 7; i++) {
+//         dev->raw_meas[i] = (int16_t)((buffer[i * 2] << 8) | buffer[i * 2 + 1]);
+//     }
+
+//     dev->temp = ((float)dev->raw_meas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
+
+//     dev->acc[0] = ((dev->raw_meas[1] * dev->accel_scale) - dev->acc_b[0]) * dev->acc_s[0];
+//     dev->acc[1] = ((dev->raw_meas[2] * dev->accel_scale) - dev->acc_b[1]) * dev->acc_s[1];
+//     dev->acc[2] = ((dev->raw_meas[3] * dev->accel_scale) - dev->acc_b[2]) * dev->acc_s[2];
+
+//     dev->gyr[0] = (dev->raw_meas[4] * dev->gyro_scale) - dev->gyr_b[0];
+//     dev->gyr[1] = (dev->raw_meas[5] * dev->gyro_scale) - dev->gyr_b[1];
+//     dev->gyr[2] = (dev->raw_meas[6] * dev->gyro_scale) - dev->gyr_b[2];
+
+//     return 1;
+// }
 
 int icm42605_calibrate_gyro(ICM42605_t *dev) {
     ICM42605_GyroFS current_fs = dev->gyro_fs;
