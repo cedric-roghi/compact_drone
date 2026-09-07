@@ -118,14 +118,14 @@ volatile uint32_t g_uart_error_count = 0;
 #define PITCH_KI  0.0f
 #define PITCH_KD  0.5f
 
-#define YAW_KP    40.0f
+#define YAW_KP    6.0f
 #define YAW_KI    0.0f
-#define YAW_KD    0.1f
+#define YAW_KD    0.2f
 
 #define SERVO_PID_OUTPUT_LIMIT  1000.0f
-#define YAW_PID_OUTPUT_LIMIT    2000.0f
+#define YAW_PID_OUTPUT_LIMIT    800.0f
 
-#define ESC_MIN_PCT_DEFAULT 0.12f
+#define ESC_MIN_PCT_DEFAULT 0.10f
 volatile float g_esc_min_pct = ESC_MIN_PCT_DEFAULT;
 
 typedef struct
@@ -491,6 +491,10 @@ void StartPidTask(void *argument)
     pid_init(&pitch_pid, PITCH_KP, PITCH_KI, PITCH_KD, SERVO_PID_OUTPUT_LIMIT);
     pid_init(&yaw_pid, YAW_KP, YAW_KI, YAW_KD, YAW_PID_OUTPUT_LIMIT);
 
+    // Safety state tracker: prevents arming if throttle is not at zero
+    static uint8_t throttle_lockout = 0;
+    uint8_t prev_armed_state = 0;
+
     usb_send("PID Task started\r\n");
 
     for (;;)
@@ -516,8 +520,27 @@ void StartPidTask(void *argument)
             current_setpoint.yaw_rate_setpoint = 0.0f;
         }
 
-        // DISARMED STATE
-        if (!current_setpoint.armed)
+        // Check for transition from disarmed to armed with throttle > 0%
+        if (current_setpoint.armed && !prev_armed_state)
+        {
+            if (current_setpoint.throttle > 0.01f)
+            {
+                throttle_lockout = 1;
+                usb_send("SAFETY CATCH: Arming blocked! Lower throttle to 0%% first.\r\n");
+            }
+        }
+        
+        // Clear lockout once the throttle is brought down to zero while armed
+        if (throttle_lockout && (current_setpoint.throttle <= 0.01f))
+        {
+            throttle_lockout = 0;
+            usb_send("Safety catch cleared: throttle is at zero.\r\n");
+        }
+
+        prev_armed_state = current_setpoint.armed;
+
+        // Force disarmed state if lockout is active or switch is off
+        if (!current_setpoint.armed || throttle_lockout)
         {
             motor_SetPulse(&rotorup, ESC_MIN_PULSE_TICKS);
             motor_SetPulse(&rotordown, ESC_MIN_PULSE_TICKS);
