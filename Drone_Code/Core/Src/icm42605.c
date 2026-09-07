@@ -101,19 +101,30 @@ int icm42605_init(ICM42605_t *dev, I2C_HandleTypeDef *hi2c, uint8_t i2c_addr) {
 
     HAL_Delay(50);
 
-    // 3. Read WHO_AM_I and print the returned byte before returning -3
     uint8_t id = who_am_i(dev);
     if (id != ICM42605_WHO_AM_I_VAL) {
         usb_send("WHO_AM_I failed! Expected 0x42, got 0x%02X\r\n", id);
         return -3;
     }
 
+    // Power on Gyroscope and Accelerometer in Low-Noise mode
     if (write_register(dev, UB0_REG_PWR_MGMT0, 0x0F) < 0) {
         return -4;
     }
 
+    // Set full-scale ranges
     if (icm42605_set_accel_fs(dev, ACCEL_FS_GPM16) < 0) return -5;
     if (icm42605_set_gyro_fs(dev, GYRO_FS_DPS2000) < 0) return -6;
+
+    // Set Output Data Rates to 1 kHz
+    if (icm42605_set_accel_odr(dev, ODR_1KHZ) < 0) return -7;
+    if (icm42605_set_gyro_odr(dev, ODR_1KHZ) < 0) return -8;
+
+    // Configure hardware anti-alias and low-pass filter bandwidths 
+    // via GYRO_ACCEL_CONFIG0 (0x52) to block high-frequency motor noise
+    if (write_register(dev, UB0_REG_GYRO_ACCEL_CONFIG0, 0x44) < 0) {
+        return -9;
+    }
 
     return icm42605_calibrate_gyro(dev);
 }
@@ -128,26 +139,23 @@ int icm42605_get_agt(ICM42605_t *dev) {
 
     dev->temp = ((float)dev->raw_meas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
 
-    // Temporary variables for raw scaled values before orientation remapping
-    float raw_acc[3], raw_gyr[3];
+    // 1. Calculate raw scaled values and subtract biases in the *native sensor frame*
+    float raw_acc_x = ((float)dev->raw_meas[1] * dev->accel_scale - dev->acc_b[0]) * dev->acc_s[0];
+    float raw_acc_y = ((float)dev->raw_meas[2] * dev->accel_scale - dev->acc_b[1]) * dev->acc_s[1];
+    float raw_acc_z = ((float)dev->raw_meas[3] * dev->accel_scale - dev->acc_b[2]) * dev->acc_s[2];
 
-    raw_acc[0] = ((dev->raw_meas[1] * dev->accel_scale) - dev->acc_b[0]) * dev->acc_s[0];
-    raw_acc[1] = ((dev->raw_meas[2] * dev->accel_scale) - dev->acc_b[1]) * dev->acc_s[1];
-    raw_acc[2] = ((dev->raw_meas[3] * dev->accel_scale) - dev->acc_b[2]) * dev->acc_s[2];
+    float raw_gyr_x = (float)dev->raw_meas[4] * dev->gyro_scale - dev->gyr_b[0];
+    float raw_gyr_y = (float)dev->raw_meas[5] * dev->gyro_scale - dev->gyr_b[1];
+    float raw_gyr_z = (float)dev->raw_meas[6] * dev->gyro_scale - dev->gyr_b[2];
 
-    raw_gyr[0] = (dev->raw_meas[4] * dev->gyro_scale) - dev->gyr_b[0];
-    raw_gyr[1] = (dev->raw_meas[5] * dev->gyro_scale) - dev->gyr_b[1];
-    raw_gyr[2] = (dev->raw_meas[6] * dev->gyro_scale) - dev->gyr_b[2];
+    // 2. Remap axes to match your upright board mounting orientation as the final step
+    dev->acc[0] = raw_acc_z;   
+    dev->acc[1] = raw_acc_y;
+    dev->acc[2] = -raw_acc_x; 
 
-    // Remap axes to match your upright board mounting orientation
-    // (Adjust these assignments/signs depending on how your board is physically rotated)
-    dev->acc[0] = raw_acc[2];   
-    dev->acc[1] = raw_acc[1];
-    dev->acc[2] = -raw_acc[0]; 
-
-    dev->gyr[0] = raw_gyr[2];
-    dev->gyr[1] = raw_gyr[1];
-    dev->gyr[2] = -raw_gyr[0];
+    dev->gyr[0] = raw_gyr_z;
+    dev->gyr[1] = raw_gyr_y;
+    dev->gyr[2] = -raw_gyr_x;
 
     return 1;
 }

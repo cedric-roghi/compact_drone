@@ -54,7 +54,7 @@
 
 #define MAX_PITCH 30 // degrees absolute value so -30 to 30
 #define MAX_ROLL 30  // degrees absolute value so -30 to 30
-#define MAX_YAW 5    // degrees per second
+#define MAX_YAW 200    // degrees per second
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -110,20 +110,23 @@ volatile uint32_t g_last_rc_tick = 0;
 
 volatile uint32_t g_uart_error_count = 0;
 
-#define ROLL_KP   16.0f
+#define ROLL_KP   12.0f
 #define ROLL_KI   0.0f
-#define ROLL_KD   0.0f
+#define ROLL_KD   0.5f
 
-#define PITCH_KP  16.0f
+#define PITCH_KP  12.0f
 #define PITCH_KI  0.0f
-#define PITCH_KD  0.0f
+#define PITCH_KD  0.5f
 
-#define YAW_KP    2.0f
+#define YAW_KP    40.0f
 #define YAW_KI    0.0f
-#define YAW_KD    0.0f
+#define YAW_KD    0.1f
 
-#define SERVO_PID_OUTPUT_LIMIT  500.0f
-#define YAW_PID_OUTPUT_LIMIT    500.0f
+#define SERVO_PID_OUTPUT_LIMIT  1000.0f
+#define YAW_PID_OUTPUT_LIMIT    2000.0f
+
+#define ESC_MIN_PCT_DEFAULT 0.12f
+volatile float g_esc_min_pct = ESC_MIN_PCT_DEFAULT;
 
 typedef struct
 {
@@ -262,20 +265,20 @@ void StartDefaultTask(void *argument)
       usb_send("Battery Voltage: %lu.%luV (ADC: %lu)\r\n", voltage_mv / 1000, voltage_mv % 1000, adc_value);
 
       uint8_t battery_pct = 0;
-      // Extended range down to 2.0V (2000 mV) with strict underflow protection
+      
       if (voltage_mv >= 12600) {
         battery_pct = 100;
-      } else if (voltage_mv <= 2000) {
+      } else if (voltage_mv <= 10000) {
         battery_pct = 0;
       } else {
-        battery_pct = (uint8_t)(((float)(voltage_mv - 2000) / (12600.0f - 2000.0f)) * 100.0f);
+        battery_pct = (uint8_t)(((float)(voltage_mv - 10000) / (12600.0f - 10000.0f)) * 100.0f);
       }
 
       g_shared_voltage_mv = voltage_mv;
       g_shared_battery_pct = battery_pct;
 
-      // Warning threshold adjusted for 2V (ADC threshold ~615 based on voltage divider ratio)
-      if (adc_value < 615) {
+      // Warning threshold set directly to 10.5V (10500 mV)
+      if (voltage_mv < 10500) {
         if ((osKernelGetTickCount() - lastBlinkTick) >= 250) {
           HAL_GPIO_TogglePin(LED_PORT, RED_LED_PIN);
           lastBlinkTick = osKernelGetTickCount();
@@ -546,36 +549,55 @@ void StartPidTask(void *argument)
         float yaw_error = current_setpoint.yaw_rate_setpoint - g_imu.gyr[2];
         float yaw_correction = pid_compute(&yaw_pid, yaw_error, DT_SECONDS);
 
-        // Calculate throttle
+        // Calculate throttle bounds
         if (current_setpoint.throttle < 0.0f) current_setpoint.throttle = 0.0f;
         if (current_setpoint.throttle > 1.0f) current_setpoint.throttle = 1.0f;
 
-        uint32_t base_throttle_ticks;
+        // Calculate minimum power ticks based on the global minimum motor speed percentage variable
+        uint32_t esc_span = ESC_MAX_PULSE_TICKS - ESC_MIN_PULSE_TICKS;
+        uint32_t esc_min_ticks = ESC_MIN_PULSE_TICKS + (uint32_t)(g_esc_min_pct * (float)esc_span);
+
+        // Map throttle from [0.0, 1.0] to [esc_min_ticks, ESC_MAX_PULSE_TICKS]
+        uint32_t active_esc_span = ESC_MAX_PULSE_TICKS - esc_min_ticks;
+        uint32_t base_throttle_ticks = esc_min_ticks + (uint32_t)(current_setpoint.throttle * (float)active_esc_span);
+
         int32_t up_motor_ticks;
         int32_t down_motor_ticks;
 
-        if (current_setpoint.throttle < 0.01f)
-        {
-            // Force absolute minimum idle pulse when throttle is zero
-            base_throttle_ticks = ESC_MIN_PULSE_TICKS;
-            up_motor_ticks = ESC_MIN_PULSE_TICKS;
-            down_motor_ticks = ESC_MIN_PULSE_TICKS;
-        }
-        else
-        {
-            base_throttle_ticks = ESC_MIN_PULSE_TICKS + (uint32_t)(current_setpoint.throttle * (float)(ESC_MAX_PULSE_TICKS - ESC_MIN_PULSE_TICKS));
+        // Yaw motor mixing (Active across all throttle ranges when armed)
+        float trim_offset = g_yaw_trim * 50.0f;
+        int32_t up_raw = (int32_t)base_throttle_ticks - (int32_t)yaw_correction + (int32_t)trim_offset;
+        int32_t down_raw = (int32_t)base_throttle_ticks + (int32_t)yaw_correction - (int32_t)trim_offset;
 
-            // Yaw motor mixing
-            float trim_offset = g_yaw_trim * 50.0f;
-            up_motor_ticks = (int32_t)base_throttle_ticks - (int32_t)yaw_correction + (int32_t)trim_offset;
-            down_motor_ticks = (int32_t)base_throttle_ticks + (int32_t)yaw_correction - (int32_t)trim_offset;
+        // Desaturation Logic: Preserves yaw differential authority when saturation occurs
+        if (up_raw > (int32_t)ESC_MAX_PULSE_TICKS) {
+            int32_t excess = up_raw - (int32_t)ESC_MAX_PULSE_TICKS;
+            up_raw -= excess;
+            down_raw -= excess;
+        } else if (down_raw > (int32_t)ESC_MAX_PULSE_TICKS) {
+            int32_t excess = down_raw - (int32_t)ESC_MAX_PULSE_TICKS;
+            up_raw -= excess;
+            down_raw -= excess;
         }
 
-        // Clamp motors
-        if (up_motor_ticks < (int32_t)ESC_MIN_PULSE_TICKS) up_motor_ticks = ESC_MIN_PULSE_TICKS;
-        if (up_motor_ticks > (int32_t)ESC_MAX_PULSE_TICKS) up_motor_ticks = ESC_MAX_PULSE_TICKS;
-        if (down_motor_ticks < (int32_t)ESC_MIN_PULSE_TICKS) down_motor_ticks = ESC_MIN_PULSE_TICKS;
-        if (down_motor_ticks > (int32_t)ESC_MAX_PULSE_TICKS) down_motor_ticks = ESC_MAX_PULSE_TICKS;
+        if (up_raw < (int32_t)esc_min_ticks) {
+            int32_t deficit = (int32_t)esc_min_ticks - up_raw;
+            up_raw += deficit;
+            down_raw += deficit;
+        } else if (down_raw < (int32_t)esc_min_ticks) {
+            int32_t deficit = (int32_t)esc_min_ticks - down_raw;
+            up_raw += deficit;
+            down_raw += deficit;
+        }
+
+        // Final hard safety clamp
+        if (up_raw > (int32_t)ESC_MAX_PULSE_TICKS) up_raw = (int32_t)ESC_MAX_PULSE_TICKS;
+        if (down_raw > (int32_t)ESC_MAX_PULSE_TICKS) down_raw = (int32_t)ESC_MAX_PULSE_TICKS;
+        if (up_raw < (int32_t)esc_min_ticks) up_raw = (int32_t)esc_min_ticks;
+        if (down_raw < (int32_t)esc_min_ticks) down_raw = (int32_t)esc_min_ticks;
+
+        up_motor_ticks = up_raw;
+        down_motor_ticks = down_raw;
 
         // Servo output
         int32_t pitch_servo_ticks = SERVO_MID_PULSE_TICKS + (int32_t)pitch_correction;
@@ -595,6 +617,23 @@ void StartPidTask(void *argument)
             motor_SetPulse(&rotordown, (uint32_t)down_motor_ticks);
             motor_SetPulse(&spitch, (uint32_t)pitch_servo_ticks);
             motor_SetPulse(&sroll, (uint32_t)roll_servo_ticks);
+
+            // --- SLOW ESC & MOTOR DEBUG PRINT (Once per second) ---
+            static uint32_t esc_debug_counter = 0;
+            if (++esc_debug_counter >= 50) // 50 * 20ms = 1 second
+            {
+                esc_debug_counter = 0;
+                int throttle_pct = (int)(current_setpoint.throttle * 100.0f);
+                int yaw_err_int = (int)yaw_error;
+                
+                usb_send("ESC Status -> Armed: %u | Throt: %d%% | Up Ticks: %ld | Down Ticks: %ld | Yaw Err: %d\r\n", 
+                         current_setpoint.armed, 
+                         throttle_pct, 
+                         (long)up_motor_ticks, 
+                         (long)down_motor_ticks,
+                         yaw_err_int);
+            }
+            // -----------------------------------------------------
         }
     }
 }
