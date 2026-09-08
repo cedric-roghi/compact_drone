@@ -35,6 +35,7 @@
 #include <stdarg.h>
 #include "icm42605.h"
 #include "imu_math.h"
+#include "lpf.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,8 +46,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 // Define fixed update period (e.g., 2ms = 500 Hz loop)
-#define IMU_TASK_PERIOD_MS 2
-#define DT_SECONDS         (IMU_TASK_PERIOD_MS / 1000.0f)
+#define IMU_TASK_FREQ      200 // Hz
+#define IMU_TASK_PERIOD_MS (1000 / IMU_TASK_FREQ) // 5 ms
+#define DT_SECONDS         (1.0f / (float)IMU_TASK_FREQ) // 0.005f seconds
 
 #define RED_LED_PIN    GPIO_PIN_7
 #define GREEN_LED_PIN  GPIO_PIN_8
@@ -110,17 +112,17 @@ volatile uint32_t g_last_rc_tick = 0;
 
 volatile uint32_t g_uart_error_count = 0;
 
-#define ROLL_KP   12.0f
+#define ROLL_KP   0.0f
 #define ROLL_KI   0.0f
-#define ROLL_KD   0.5f
+#define ROLL_KD   0.0f
 
-#define PITCH_KP  12.0f
+#define PITCH_KP  0.0f
 #define PITCH_KI  0.0f
-#define PITCH_KD  0.5f
+#define PITCH_KD  0.0f
 
-#define YAW_KP    6.0f
+#define YAW_KP    4.0f
 #define YAW_KI    0.0f
-#define YAW_KD    0.2f
+#define YAW_KD    0.8f
 
 #define SERVO_PID_OUTPUT_LIMIT  1000.0f
 #define YAW_PID_OUTPUT_LIMIT    800.0f
@@ -150,7 +152,7 @@ volatile uint16_t uart_rx_flag = 0;
 volatile uint32_t g_shared_voltage_mv = 0;
 volatile uint8_t g_shared_battery_pct = 0;
 
-volatile float g_yaw_trim = 0.0f; // Trim adjustment between -1.0 and 1.0 to balance motor
+volatile float g_yaw_trim = -1.5f; // Trim adjustment between -1.0 and 1.0 to balance motor
 
 extern TIM_HandleTypeDef htim1, htim2;  // Defined in tim.c
 
@@ -271,14 +273,14 @@ void StartDefaultTask(void *argument)
       } else if (voltage_mv <= 10000) {
         battery_pct = 0;
       } else {
-        battery_pct = (uint8_t)(((float)(voltage_mv - 10000) / (12600.0f - 10000.0f)) * 100.0f);
+        battery_pct = (uint8_t)(((float)(voltage_mv - 10000.0f) / (12600.0f - 10000.0f)) * 100.0f);
       }
 
       g_shared_voltage_mv = voltage_mv;
       g_shared_battery_pct = battery_pct;
 
-      // Warning threshold set directly to 10.5V (10500 mV)
-      if (voltage_mv < 10500) {
+      // Warning threshold set directly to 11.0V (11000 mV)
+      if (voltage_mv < 11000) {
         if ((osKernelGetTickCount() - lastBlinkTick) >= 250) {
           HAL_GPIO_TogglePin(LED_PORT, RED_LED_PIN);
           lastBlinkTick = osKernelGetTickCount();
@@ -403,7 +405,7 @@ void StartReceiverTask(void *argument)
                         new_cmd.roll_setpoint = map_float((float)rc_channels.channel_01, 172.0f, 1811.0f, -(float)MAX_ROLL, (float)MAX_ROLL);
                         new_cmd.pitch_setpoint = map_float((float)rc_channels.channel_02, 172.0f, 1811.0f, -(float)MAX_PITCH, (float)MAX_PITCH);
                         new_cmd.throttle = map_float((float)rc_channels.channel_03, 172.0f, 1811.0f, 0.0f, 1.0f);
-                        new_cmd.yaw_rate_setpoint = map_float((float)rc_channels.channel_04, 172.0f, 1811.0f, -(float)MAX_YAW, (float)MAX_YAW);
+                        new_cmd.yaw_rate_setpoint = map_float((float)rc_channels.channel_04, 172.0f, 1811.0f, (float)MAX_YAW, -(float)MAX_YAW);
                         new_cmd.armed = (rc_channels.channel_07 > 1500) ? 1 : 0;
 
                         if (osMessageQueuePut(rcCommandQueueHandle, &new_cmd, 0, 0) != osOK)
@@ -487,6 +489,9 @@ void StartPidTask(void *argument)
     PID_Controller_t pitch_pid;
     PID_Controller_t yaw_pid;
 
+    LPF_t yaw_gyro_lpf;
+    lpf_init(&yaw_gyro_lpf, 80.0f, DT_SECONDS);
+
     pid_init(&roll_pid, ROLL_KP, ROLL_KI, ROLL_KD, SERVO_PID_OUTPUT_LIMIT);
     pid_init(&pitch_pid, PITCH_KP, PITCH_KI, PITCH_KD, SERVO_PID_OUTPUT_LIMIT);
     pid_init(&yaw_pid, YAW_KP, YAW_KI, YAW_KD, YAW_PID_OUTPUT_LIMIT);
@@ -568,8 +573,9 @@ void StartPidTask(void *argument)
         float roll_correction = pid_compute(&roll_pid, roll_error, DT_SECONDS);
         float pitch_correction = pid_compute(&pitch_pid, pitch_error, DT_SECONDS);
 
+        float filtered_yaw_gyro = lpf_update(&yaw_gyro_lpf, g_imu.gyr[2]);
         // Yaw rate using direct gyroscope Z-axis reading to avoid filter delay and noise amplification
-        float yaw_error = current_setpoint.yaw_rate_setpoint - g_imu.gyr[2];
+        float yaw_error = current_setpoint.yaw_rate_setpoint - filtered_yaw_gyro;
         float yaw_correction = pid_compute(&yaw_pid, yaw_error, DT_SECONDS);
 
         // Calculate throttle bounds
@@ -587,10 +593,14 @@ void StartPidTask(void *argument)
         int32_t up_motor_ticks;
         int32_t down_motor_ticks;
 
-        // Yaw motor mixing (Active across all throttle ranges when armed)
+        // Apply trim independently to each motor's baseline throttle
         float trim_offset = g_yaw_trim * 50.0f;
-        int32_t up_raw = (int32_t)base_throttle_ticks - (int32_t)yaw_correction + (int32_t)trim_offset;
-        int32_t down_raw = (int32_t)base_throttle_ticks + (int32_t)yaw_correction - (int32_t)trim_offset;
+        int32_t up_base = (int32_t)base_throttle_ticks + (int32_t)trim_offset;
+        int32_t down_base = (int32_t)base_throttle_ticks - (int32_t)trim_offset;
+
+        // Yaw motor mixing: apply PID correction symmetrically around the trimmed baselines
+        int32_t up_raw = up_base - (int32_t)yaw_correction;
+        int32_t down_raw = down_base + (int32_t)yaw_correction;
 
         // Desaturation Logic: Preserves yaw differential authority when saturation occurs
         if (up_raw > (int32_t)ESC_MAX_PULSE_TICKS) {
@@ -712,21 +722,27 @@ static float pid_compute(PID_Controller_t *pid, float error, float dt)
     }
     float d = pid->kd * derivative;
 
-    // Integral
-    pid->integral += error * dt;
-    float i = pid->ki * pid->integral;
+    // Determine if we should integrate (Anti-Windup Check)
+    // Only accumulate integral if we are not saturated in the direction of the error,
+    // or if the error will help pull us out of saturation.
+    int update_integral = 1;
+    float tentative_output = p + (pid->ki * (pid->integral + (error * dt))) + d;
+    
+    if (tentative_output > pid->output_limit && error > 0.0f)
+    {
+        update_integral = 0; // Prevent winding up higher when stuck at upper limit
+    }
+    else if (tentative_output < -pid->output_limit && error < 0.0f)
+    {
+        update_integral = 0; // Prevent winding up lower when stuck at lower limit
+    }
 
-    // Limit integral contribution
-    if (i > pid->output_limit)
+    if (update_integral && pid->ki != 0.0f)
     {
-      i = pid->output_limit;
-      if (pid->ki != 0.0f) pid->integral = pid->output_limit / pid->ki;
+        pid->integral += error * dt;
     }
-    else if (i < -pid->output_limit)
-    {
-      i = -pid->output_limit;
-      if (pid->ki != 0.0f) pid->integral = -pid->output_limit / pid->ki;
-    }
+
+    float i = pid->ki * pid->integral;
 
     // Save error
     pid->prev_error = error;
@@ -734,9 +750,15 @@ static float pid_compute(PID_Controller_t *pid, float error, float dt)
     // Total output
     float output = p + i + d;
 
-    // Output saturation
-    if (output > pid->output_limit) output = pid->output_limit;
-    else if (output < -pid->output_limit) output = -pid->output_limit;
+    // Output saturation clamping
+    if (output > pid->output_limit) 
+    {
+        output = pid->output_limit;
+    }
+    else if (output < -pid->output_limit) 
+    {
+        output = -pid->output_limit;
+    }
 
     return output;
 }
