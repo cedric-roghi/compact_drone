@@ -103,6 +103,7 @@ typedef struct {
     float pitch_setpoint;    // Target Pitch angle (degrees)
     float yaw_rate_setpoint; // Target Yaw rate (deg/s)
     float throttle;          // 0.0 to 1.0 (0% to 100% thrust)
+    float yaw_kp;
     uint8_t armed;           // Safety switch state
 } ControlSetpoint_t;
 
@@ -112,20 +113,20 @@ volatile uint32_t g_last_rc_tick = 0;
 
 volatile uint32_t g_uart_error_count = 0;
 
-#define ROLL_KP   0.0f
+#define ROLL_KP   5.0f
 #define ROLL_KI   0.0f
 #define ROLL_KD   0.0f
 
-#define PITCH_KP  0.0f
+#define PITCH_KP  5.0f
 #define PITCH_KI  0.0f
 #define PITCH_KD  0.0f
 
-#define YAW_KP    4.0f
+#define YAW_KP    2.0f
 #define YAW_KI    0.0f
-#define YAW_KD    0.8f
+#define YAW_KD    0.01f
 
 #define SERVO_PID_OUTPUT_LIMIT  1000.0f
-#define YAW_PID_OUTPUT_LIMIT    800.0f
+#define YAW_PID_OUTPUT_LIMIT    1200.0f
 
 #define ESC_MIN_PCT_DEFAULT 0.10f
 volatile float g_esc_min_pct = ESC_MIN_PCT_DEFAULT;
@@ -152,7 +153,7 @@ volatile uint16_t uart_rx_flag = 0;
 volatile uint32_t g_shared_voltage_mv = 0;
 volatile uint8_t g_shared_battery_pct = 0;
 
-volatile float g_yaw_trim = -1.5f; // Trim adjustment between -1.0 and 1.0 to balance motor
+volatile float g_yaw_trim = 5.0f; // Trim adjustment between -1.0 and 1.0 to balance motor
 
 extern TIM_HandleTypeDef htim1, htim2;  // Defined in tim.c
 
@@ -406,6 +407,9 @@ void StartReceiverTask(void *argument)
                         new_cmd.pitch_setpoint = map_float((float)rc_channels.channel_02, 172.0f, 1811.0f, -(float)MAX_PITCH, (float)MAX_PITCH);
                         new_cmd.throttle = map_float((float)rc_channels.channel_03, 172.0f, 1811.0f, 0.0f, 1.0f);
                         new_cmd.yaw_rate_setpoint = map_float((float)rc_channels.channel_04, 172.0f, 1811.0f, (float)MAX_YAW, -(float)MAX_YAW);
+
+                        new_cmd.yaw_kp = map_float((float)rc_channels.channel_10, 172.0f, 1811.0f, 0.0f, 10.0f);
+
                         new_cmd.armed = (rc_channels.channel_07 > 1500) ? 1 : 0;
 
                         if (osMessageQueuePut(rcCommandQueueHandle, &new_cmd, 0, 0) != osOK)
@@ -490,7 +494,12 @@ void StartPidTask(void *argument)
     PID_Controller_t yaw_pid;
 
     LPF_t yaw_gyro_lpf;
-    lpf_init(&yaw_gyro_lpf, 80.0f, DT_SECONDS);
+    lpf_init(&yaw_gyro_lpf, 30.0f, DT_SECONDS);
+
+    LPF_t roll_gyro_lpf;
+    LPF_t pitch_gyro_lpf;
+    lpf_init(&roll_gyro_lpf, 30.0f, DT_SECONDS);
+    lpf_init(&pitch_gyro_lpf, 30.0f, DT_SECONDS);
 
     pid_init(&roll_pid, ROLL_KP, ROLL_KI, ROLL_KD, SERVO_PID_OUTPUT_LIMIT);
     pid_init(&pitch_pid, PITCH_KP, PITCH_KI, PITCH_KD, SERVO_PID_OUTPUT_LIMIT);
@@ -513,6 +522,8 @@ void StartPidTask(void *argument)
 
         // Get newest RC command
         osMessageQueueGet(rcCommandQueueHandle, &current_setpoint, NULL, 0);
+
+        // yaw_pid.kp = current_setpoint.yaw_kp;
 
         // HARD RC FAILSAFE
         uint32_t now = osKernelGetTickCount();
@@ -565,13 +576,21 @@ void StartPidTask(void *argument)
             continue;
         }
 
-        // Calculate attitude errors
+        // Calculate attitude errors for Proportional term
         float roll_error = current_setpoint.roll_setpoint - current_attitude.roll;
         float pitch_error = current_setpoint.pitch_setpoint - current_attitude.pitch;
 
-        // Roll / pitch PID
-        float roll_correction = pid_compute(&roll_pid, roll_error, DT_SECONDS);
-        float pitch_correction = pid_compute(&pitch_pid, pitch_error, DT_SECONDS);
+        // Filter roll and pitch gyros for the D-term (using g_imu.gyr[0] for roll, g_imu.gyr[1] for pitch)
+        float filtered_roll_gyro = lpf_update(&roll_gyro_lpf, g_imu.gyr[0]);
+        float filtered_pitch_gyro = lpf_update(&pitch_gyro_lpf, g_imu.gyr[1]);
+
+        // If using PD control for roll/pitch where D acts on gyro rate:
+        // P-term uses angle error, D-term uses -filtered_gyro
+        // (Alternatively, you can pass error into pid_compute if your pid_compute handles D via error difference, 
+        // but passing the filtered gyro into a custom rate-damping term is cleaner for swashplates).
+        
+        float roll_correction = (ROLL_KP * roll_error) - (ROLL_KD * filtered_roll_gyro);
+        float pitch_correction = (PITCH_KP * pitch_error) - (PITCH_KD * filtered_pitch_gyro);
 
         float filtered_yaw_gyro = lpf_update(&yaw_gyro_lpf, g_imu.gyr[2]);
         // Yaw rate using direct gyroscope Z-axis reading to avoid filter delay and noise amplification
@@ -593,14 +612,16 @@ void StartPidTask(void *argument)
         int32_t up_motor_ticks;
         int32_t down_motor_ticks;
 
-        // Apply trim independently to each motor's baseline throttle
-        float trim_offset = g_yaw_trim * 50.0f;
-        int32_t up_base = (int32_t)base_throttle_ticks + (int32_t)trim_offset;
-        int32_t down_base = (int32_t)base_throttle_ticks - (int32_t)trim_offset;
+        // FIX: Apply trim as a differential bias directly on the control/PID level 
+        // rather than shifting the raw base throttle ticks into the hardware rails.
+        float trim_bias = g_yaw_trim * 25.0f; // Adjusted scale for balance
 
-        // Yaw motor mixing: apply PID correction symmetrically around the trimmed baselines
-        int32_t up_raw = up_base - (int32_t)yaw_correction;
-        int32_t down_raw = down_base + (int32_t)yaw_correction;
+        // Symmetrical base throttle for both motors
+        int32_t base_ticks = (int32_t)base_throttle_ticks;
+
+        // Yaw motor mixing: Combine base throttle, PID yaw correction, and a protected trim bias
+        int32_t up_raw   = base_ticks - (int32_t)yaw_correction - (int32_t)trim_bias;
+        int32_t down_raw = base_ticks + (int32_t)yaw_correction + (int32_t)trim_bias;
 
         // Desaturation Logic: Preserves yaw differential authority when saturation occurs
         if (up_raw > (int32_t)ESC_MAX_PULSE_TICKS) {
