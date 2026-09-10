@@ -30,7 +30,11 @@ Using a coaxial design is more efficient in theory. Having two large propeller s
 Some applications for the drone would be for survey work in remote areas, filming, compact and rapid deployment via stackable launch cells. 
 
 - STM32f411:
-    - Same MCU I used for my turret project. Its fast, powerful, and has many timers for pwm output. Since I used it for the turret it makes the PCB development for the drone much faster.
+    - Same 
+
+https://github.com/user-attachments/assets/415317f5-2f4a-4eaa-9d52-048ebe863607
+
+MCU I used for my turret project. Its fast, powerful, and has many timers for pwm output. Since I used it for the turret it makes the PCB development for the drone much faster.
 
 Progress Update:
 ![Picture of Kicad PCB](/Pictures/KiCADPCBPrototypeV1.png)
