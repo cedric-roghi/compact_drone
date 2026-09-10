@@ -21,24 +21,29 @@ compact contra rotating drone
     - Access to a 3D printer
 
 ## Rationale
-The design idea for this drone is not my own. Despite it being a rare design I got inspiration from projects such as [backcountrydrones](https://www.youtube.com/watch?v=82phDhYGT_0) and [Tdrone](https://github.com/ShenZhenAccelerationTechCo/Tdrone). Backcountry Drones guys have now changed to Ascent Aerosystems and make military/law enforcement and industrial coaxial drones. The NASA mars copter is another example of a contra rotating drone design.
+I did not come up with the design idea of a tube shaped coaxial drone. Despite it being a rare design I got inspiration from projects such as [backcountrydrones](https://www.youtube.com/watch?v=82phDhYGT_0) and [Tdrone](https://github.com/ShenZhenAccelerationTechCo/Tdrone). BackcountryDrones guys have now changed to Ascent Aerosystems and make military/law enforcement and industrial coaxial drones. The NASA mars copter is another example of a contra rotating drone design.
 
 The idea is that the propellers can fold down which means the drone can fit in smaller storage solutions. Not only does the the tube shape enable a smaller size when storing the drone but it also helps make it more rugged and resistant to poor treatment. A final goal for this project would be to have a drone I can strap to the outside of a hiking pack without having to worry about damage. 
 
 Using a coaxial design is more efficient in theory. Having two large propeller spinning about the center of the drone increases the lifting disc area compared to having four propellers next to each other that will waste space. A coaxial drone with a tube shape also reduces its surface area when tilting forwards to move making it more streamlined than a quadcopter that shows more surface area to drag when moving forward. I recommend reading this paper from Ascent Aerosystems about all the advantages and its got diagrams (https://ascentaerosystems.com/wp-content/uploads/2024/12/Coaxial-Advantage-White-Paper-Ascent-AeroSystems.pdf).
 
+Just because two propellers are stacked on top of each other does not actually mean I get double the lift of normal helicopter. Based on a small amount of research I have done, it would seem that while coaxial drones can be more efficient and reduce turbulent airflow they do not multiply thrust by two. Basically the thrust gain is not linear. Source (https://www.ligpower.com/blog/conventional-vs-coaxial-drone-motors.html).
+
 Figures from the Ascent Aerosystems paper (https://ascentaerosystems.com/wp-content/uploads/2024/12/Coaxial-Advantage-White-Paper-Ascent-AeroSystems.pdf).
 <img width="947" height="389" alt="Screenshot_20260910_214609" src="https://github.com/user-attachments/assets/ec02294e-31c1-4dc9-8513-ab6d6a43b3a5" />
 <img width="971" height="874" alt="Screenshot_20260910_215506" src="https://github.com/user-attachments/assets/eca8ac8c-41ee-40d6-9e26-2b3267afdb6f" />
 
-Some applications for the drone would be for survey work in remote areas, filming, compact and rapid deployment via stackable launch cells. In theory it could even be launched from a plane like the Atlantique2 which already has tube shaped launchers on the belly for sonars. 
+Some applications for the drone would be for survey work in remote areas, filming, compact and rapid deployment via stackable launch cells. In theory it could even be launched from a plane like the Atlantique 2 which already has tube shaped launchers on the belly for sonars. The mass plane launch system could enable for massive detailed search areas using drone swarms for any use case that would require a search area like pest control, mountain rescue, security perimeters.
+
+Atlantique 2 sonar buoys launcher.
+<img width="960" height="640" alt="Sonar_Buoys_Launcher_of_Breguet_Atlantic" src="https://github.com/user-attachments/assets/3691703a-e83b-4cbb-9493-3aafc58668b0" />
 
 - STM32f411:
-    - Same MCU I used for my turret project. Its fast, powerful, and has many timers for pwm output. Since I used it for the turret it makes the PCB development for the drone much faster.
-    - Another great advantage of this MCU is that it can do up to 100MHz clock speed which gives me plenty of headroom for high speed communication (UART, I2C,  and heavy RTOS tasks to run without too much 
+    - Same MCU I used for my turret project. Its fast, powerful, and has many timers for pwm output. Since I used it for a previous turret project it makes the PCB development for the drone much faster.
+    - Another great advantage of this MCU is that it can do up to 100MHz clock speed which gives me plenty of headroom for "high speed"(relative term) communications like UART or I2C, without preempting my critical FreeRTOS tasks.
 
 Progress Update (09/09/26):
-- The yaw controls are working. I have found some PID gains that seem stable at low and high rotor speeds.
+- The yaw controls are working. I have found some PID gains that seem stable at low and high rotor speeds.QT application to adjust flight controller settings without flashing the microcontroller.
 - I used hot glue to fix the servo motors more securely and printed some new link rods to reduce play in the swash-plate.
 - The swash-plate currently has too much play where the drone cannot correct error when its too small and leads to uncontrollable oscillation.
 
@@ -63,9 +68,23 @@ or use an stlinkv2.
 ## Usage
 
 ## Features
-
+- Flight Controller
+    -  ICM42605 IMU
+    -  MMC5603NJ Magnetometer
+    -  BMP280 Barometer
+    -  2 USART connections for ELRS receiver and a future upgrade
+    -  SWD connector for debugging/flashing
+    -  Green and Red status LEDs
+    -  BOOT0 switch (to switch bootloader mode)
+    -  Reset button
+    -  Extra servo PWM connector for camera pitch control (idea is that there is no need for yaw since the drone spins around easily)
+ 
+- Mechanical
+    - Foldable propellers
+    - Fully 3D printed body
+    - 
 ## Future_Additions
 
 ## Configuration
 
-## Known Issues
+## Known_Issues
