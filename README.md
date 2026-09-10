@@ -43,7 +43,7 @@ Atlantique 2 sonar buoys launcher.
     - Another great advantage of this MCU is that it can do up to 100MHz clock speed which gives me plenty of headroom for "high speed"(relative term) communications like UART or I2C, without preempting my critical FreeRTOS tasks.
 
 Progress Update (09/09/26):
-- The yaw controls are working. I have found some PID gains that seem stable at low and high rotor speeds.QT application to adjust flight controller settings without flashing the microcontroller.
+- The yaw controls are working. I have found some PID gains that seem stable at low and high rotor speeds. I am planning on making a PyQT application to adjust flight controller settings without flashing the microcontroller.
 - I used hot glue to fix the servo motors more securely and printed some new link rods to reduce play in the swash-plate.
 - The swash-plate currently has too much play where the drone cannot correct error when its too small and leads to uncontrollable oscillation.
 
