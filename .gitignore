@@ -50,3 +50,8 @@
 *.lss
 *.lst
 *.stl
+
+*.vscode
+*.cache'
+
+Mechanical/stlExports/

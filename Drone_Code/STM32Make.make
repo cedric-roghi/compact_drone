@@ -83,6 +83,7 @@ Core/Src/gpio.c \
 Core/Src/i2c.c \
 Core/Src/icm42605.c \
 Core/Src/imu_math.c \
+Core/Src/lpf.c \
 Core/Src/main.c \
 Core/Src/motor_control.c \
 Core/Src/stm32f4xx_hal_msp.c \
