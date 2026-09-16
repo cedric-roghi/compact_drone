@@ -2326,117 +2326,117 @@ LOAD /home/cedric/.config/VSCodium/User/globalStorage/bmd.stm32-for-vscode/@xpac
                 0x0800112c      0x10c build/debug/freertos.o
                 0x0800112c                startImuTask
  .text.StartPidTask
-                0x08001238      0x3fc build/debug/freertos.o
+                0x08001238      0x400 build/debug/freertos.o
                 0x08001238                StartPidTask
  .text.HAL_UART_ErrorCallback
-                0x08001634       0x54 build/debug/freertos.o
-                0x08001634                HAL_UART_ErrorCallback
+                0x08001638       0x54 build/debug/freertos.o
+                0x08001638                HAL_UART_ErrorCallback
  .text.MX_GPIO_Init
-                0x08001688       0xfc build/debug/gpio.o
-                0x08001688                MX_GPIO_Init
+                0x0800168c       0xfc build/debug/gpio.o
+                0x0800168c                MX_GPIO_Init
  .text.prvHeapInit
-                0x08001784       0x64 build/debug/heap_4.o
+                0x08001788       0x64 build/debug/heap_4.o
  .text.prvInsertBlockIntoFreeList
-                0x080017e8       0x64 build/debug/heap_4.o
+                0x080017ec       0x64 build/debug/heap_4.o
  .text.pvPortMalloc
-                0x0800184c      0x104 build/debug/heap_4.o
-                0x0800184c                pvPortMalloc
+                0x08001850      0x104 build/debug/heap_4.o
+                0x08001850                pvPortMalloc
  .text.vPortFree
-                0x08001950       0x7c build/debug/heap_4.o
-                0x08001950                vPortFree
+                0x08001954       0x7c build/debug/heap_4.o
+                0x08001954                vPortFree
  .text.MX_I2C1_Init
-                0x080019cc       0x3c build/debug/i2c.o
-                0x080019cc                MX_I2C1_Init
+                0x080019d0       0x3c build/debug/i2c.o
+                0x080019d0                MX_I2C1_Init
  .text.HAL_I2C_MspInit
-                0x08001a08       0x70 build/debug/i2c.o
-                0x08001a08                HAL_I2C_MspInit
+                0x08001a0c       0x70 build/debug/i2c.o
+                0x08001a0c                HAL_I2C_MspInit
  .text.read_registers
-                0x08001a78       0x26 build/debug/icm42605.o
+                0x08001a7c       0x26 build/debug/icm42605.o
  .text.write_register
-                0x08001a9e       0x70 build/debug/icm42605.o
+                0x08001aa2       0x70 build/debug/icm42605.o
  .text.set_bank
-                0x08001b0e       0x18 build/debug/icm42605.o
+                0x08001b12       0x18 build/debug/icm42605.o
  .text.who_am_i
-                0x08001b26       0x30 build/debug/icm42605.o
+                0x08001b2a       0x30 build/debug/icm42605.o
  .text.reset_device
-                0x08001b56       0x1c build/debug/icm42605.o
- *fill*         0x08001b72        0x2 
+                0x08001b5a       0x1c build/debug/icm42605.o
+ *fill*         0x08001b76        0x2 
  .text.icm42605_set_accel_fs
-                0x08001b74       0x78 build/debug/icm42605.o
-                0x08001b74                icm42605_set_accel_fs
+                0x08001b78       0x78 build/debug/icm42605.o
+                0x08001b78                icm42605_set_accel_fs
  .text.icm42605_set_gyro_fs
-                0x08001bec       0x80 build/debug/icm42605.o
-                0x08001bec                icm42605_set_gyro_fs
+                0x08001bf0       0x80 build/debug/icm42605.o
+                0x08001bf0                icm42605_set_gyro_fs
  .text.icm42605_set_accel_odr
-                0x08001c6c       0x48 build/debug/icm42605.o
-                0x08001c6c                icm42605_set_accel_odr
+                0x08001c70       0x48 build/debug/icm42605.o
+                0x08001c70                icm42605_set_accel_odr
  .text.icm42605_set_gyro_odr
-                0x08001cb4       0x48 build/debug/icm42605.o
-                0x08001cb4                icm42605_set_gyro_odr
+                0x08001cb8       0x48 build/debug/icm42605.o
+                0x08001cb8                icm42605_set_gyro_odr
  .text.icm42605_get_agt
-                0x08001cfc      0x13c build/debug/icm42605.o
-                0x08001cfc                icm42605_get_agt
+                0x08001d00      0x13c build/debug/icm42605.o
+                0x08001d00                icm42605_get_agt
  .text.icm42605_calibrate_gyro
-                0x08001e38       0xac build/debug/icm42605.o
-                0x08001e38                icm42605_calibrate_gyro
+                0x08001e3c       0xac build/debug/icm42605.o
+                0x08001e3c                icm42605_calibrate_gyro
  .text.icm42605_init
-                0x08001ee4       0xc4 build/debug/icm42605.o
-                0x08001ee4                icm42605_init
+                0x08001ee8       0xc4 build/debug/icm42605.o
+                0x08001ee8                icm42605_init
  .text.imu_math_init
-                0x08001fa8        0xe build/debug/imu_math.o
-                0x08001fa8                imu_math_init
- *fill*         0x08001fb6        0x2 
+                0x08001fac        0xe build/debug/imu_math.o
+                0x08001fac                imu_math_init
+ *fill*         0x08001fba        0x2 
  .text.imu_math_update
-                0x08001fb8       0xb8 build/debug/imu_math.o
-                0x08001fb8                imu_math_update
+                0x08001fbc       0xb8 build/debug/imu_math.o
+                0x08001fbc                imu_math_update
  .text.vListInitialise
-                0x08002070       0x16 build/debug/list.o
-                0x08002070                vListInitialise
+                0x08002074       0x16 build/debug/list.o
+                0x08002074                vListInitialise
  .text.vListInitialiseItem
-                0x08002086        0x6 build/debug/list.o
-                0x08002086                vListInitialiseItem
+                0x0800208a        0x6 build/debug/list.o
+                0x0800208a                vListInitialiseItem
  .text.vListInsertEnd
-                0x0800208c       0x16 build/debug/list.o
-                0x0800208c                vListInsertEnd
+                0x08002090       0x16 build/debug/list.o
+                0x08002090                vListInsertEnd
  .text.vListInsert
-                0x080020a2       0x32 build/debug/list.o
-                0x080020a2                vListInsert
+                0x080020a6       0x32 build/debug/list.o
+                0x080020a6                vListInsert
  .text.uxListRemove
-                0x080020d4       0x26 build/debug/list.o
-                0x080020d4                uxListRemove
+                0x080020d8       0x26 build/debug/list.o
+                0x080020d8                uxListRemove
  .text.lpf_init
-                0x080020fa       0x12 build/debug/lpf.o
-                0x080020fa                lpf_init
+                0x080020fe       0x12 build/debug/lpf.o
+                0x080020fe                lpf_init
  .text.lpf_update
-                0x0800210c       0x70 build/debug/lpf.o
-                0x0800210c                lpf_update
+                0x08002110       0x70 build/debug/lpf.o
+                0x08002110                lpf_update
  .text.Error_Handler
-                0x0800217c        0x4 build/debug/main.o
-                0x0800217c                Error_Handler
+                0x08002180        0x4 build/debug/main.o
+                0x08002180                Error_Handler
  .text.SystemClock_Config
-                0x08002180       0xa4 build/debug/main.o
-                0x08002180                SystemClock_Config
- .text.main     0x08002224       0x3c build/debug/main.o
-                0x08002224                main
+                0x08002184       0xa4 build/debug/main.o
+                0x08002184                SystemClock_Config
+ .text.main     0x08002228       0x3c build/debug/main.o
+                0x08002228                main
  .text.motor_Init
-                0x08002260       0x16 build/debug/motor_control.o
-                0x08002260                motor_Init
+                0x08002264       0x16 build/debug/motor_control.o
+                0x08002264                motor_Init
  .text.motor_SetPulse
-                0x08002276       0x3a build/debug/motor_control.o
-                0x08002276                motor_SetPulse
+                0x0800227a       0x3a build/debug/motor_control.o
+                0x0800227a                motor_SetPulse
  .text.motor_Start
-                0x080022b0        0xc build/debug/motor_control.o
-                0x080022b0                motor_Start
+                0x080022b4        0xc build/debug/motor_control.o
+                0x080022b4                motor_Start
  .text.prvTaskExitError
-                0x080022bc       0x40 build/debug/port.o
+                0x080022c0       0x40 build/debug/port.o
  .text.prvPortStartFirstTask
-                0x080022fc       0x28 build/debug/port.o
+                0x08002300       0x28 build/debug/port.o
  .text.vPortEnableVFP
-                0x08002324       0x14 build/debug/port.o
+                0x08002328       0x14 build/debug/port.o
  .text.pxPortInitialiseStack
-                0x08002338       0x2c build/debug/port.o
-                0x08002338                pxPortInitialiseStack
- *fill*         0x08002364        0xc 
+                0x0800233c       0x2c build/debug/port.o
+                0x0800233c                pxPortInitialiseStack
+ *fill*         0x08002368        0x8 
  .text.SVC_Handler
                 0x08002370       0x24 build/debug/port.o
                 0x08002370                SVC_Handler
@@ -4144,53 +4144,53 @@ LOAD /home/cedric/.config/VSCodium/User/globalStorage/bmd.stm32-for-vscode/@xpac
  .comment       0x00000039       0x3a /home/cedric/.config/VSCodium/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/arm-none-eabi-gcc/14.2.1-1.1.1/.content/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libm.a(libm_a-sf_fabs.o)
  .comment       0x00000039       0x3a /home/cedric/.config/VSCodium/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/arm-none-eabi-gcc/14.2.1-1.1.1/.content/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/libgcc.a(_udivmoddi4.o)
 
-.debug_info     0x00000000    0x34de2
+.debug_info     0x00000000    0x34de6
  .debug_info    0x00000000      0xa47 build/debug/adc.o
  .debug_info    0x00000a47     0x4d5d build/debug/cmsis_os2.o
  .debug_info    0x000057a4      0x448 build/debug/crsf.o
  .debug_info    0x00005bec      0x473 build/debug/dma.o
- .debug_info    0x0000605f     0x3166 build/debug/freertos.o
- .debug_info    0x000091c5      0x4f6 build/debug/gpio.o
- .debug_info    0x000096bb      0x593 build/debug/heap_4.o
- .debug_info    0x00009c4e      0xa1a build/debug/i2c.o
- .debug_info    0x0000a668     0x10f4 build/debug/icm42605.o
- .debug_info    0x0000b75c      0x24f build/debug/imu_math.o
- .debug_info    0x0000b9ab      0x2bf build/debug/list.o
- .debug_info    0x0000bc6a      0x18c build/debug/lpf.o
- .debug_info    0x0000bdf6      0x675 build/debug/main.o
- .debug_info    0x0000c46b      0x822 build/debug/motor_control.o
- .debug_info    0x0000cc8d      0x55a build/debug/port.o
- .debug_info    0x0000d1e7     0x27a8 build/debug/queue.o
- .debug_info    0x0000f98f      0x962 build/debug/stm32f4xx_hal.o
- .debug_info    0x000102f1      0xe93 build/debug/stm32f4xx_hal_adc.o
- .debug_info    0x00011184      0xf65 build/debug/stm32f4xx_hal_cortex.o
- .debug_info    0x000120e9      0xad8 build/debug/stm32f4xx_hal_dma.o
- .debug_info    0x00012bc1      0x73a build/debug/stm32f4xx_hal_gpio.o
- .debug_info    0x000132fb     0x3816 build/debug/stm32f4xx_hal_i2c.o
- .debug_info    0x00016b11      0x469 build/debug/stm32f4xx_hal_msp.o
- .debug_info    0x00016f7a     0x1c1c build/debug/stm32f4xx_hal_pcd.o
- .debug_info    0x00018b96      0x6f9 build/debug/stm32f4xx_hal_pcd_ex.o
- .debug_info    0x0001928f      0xac2 build/debug/stm32f4xx_hal_rcc.o
- .debug_info    0x00019d51     0x3c4c build/debug/stm32f4xx_hal_tim.o
- .debug_info    0x0001d99d     0x1ad7 build/debug/stm32f4xx_hal_tim_ex.o
- .debug_info    0x0001f474     0x401f build/debug/stm32f4xx_hal_uart.o
- .debug_info    0x00023493      0xbcc build/debug/stm32f4xx_it.o
- .debug_info    0x0002405f     0x1e79 build/debug/stm32f4xx_ll_usb.o
- .debug_info    0x00025ed8      0x171 build/debug/sysmem.o
- .debug_info    0x00026049      0x553 build/debug/system_stm32f4xx.o
- .debug_info    0x0002659c     0x307f build/debug/tasks.o
- .debug_info    0x0002961b     0x1000 build/debug/tim.o
- .debug_info    0x0002a61b     0x1b14 build/debug/timers.o
- .debug_info    0x0002c12f      0xd48 build/debug/usart.o
- .debug_info    0x0002ce77      0x790 build/debug/usb_device.o
- .debug_info    0x0002d607     0x1775 build/debug/usbd_cdc.o
- .debug_info    0x0002ed7c      0x9c1 build/debug/usbd_cdc_if.o
- .debug_info    0x0002f73d     0x210d build/debug/usbd_conf.o
- .debug_info    0x0003184a     0x123f build/debug/usbd_core.o
- .debug_info    0x00032a89     0x1456 build/debug/usbd_ctlreq.o
- .debug_info    0x00033edf      0x5dd build/debug/usbd_desc.o
- .debug_info    0x000344bc      0x8f6 build/debug/usbd_ioreq.o
- .debug_info    0x00034db2       0x30 build/debug/startup_stm32f411xe.o
+ .debug_info    0x0000605f     0x316a build/debug/freertos.o
+ .debug_info    0x000091c9      0x4f6 build/debug/gpio.o
+ .debug_info    0x000096bf      0x593 build/debug/heap_4.o
+ .debug_info    0x00009c52      0xa1a build/debug/i2c.o
+ .debug_info    0x0000a66c     0x10f4 build/debug/icm42605.o
+ .debug_info    0x0000b760      0x24f build/debug/imu_math.o
+ .debug_info    0x0000b9af      0x2bf build/debug/list.o
+ .debug_info    0x0000bc6e      0x18c build/debug/lpf.o
+ .debug_info    0x0000bdfa      0x675 build/debug/main.o
+ .debug_info    0x0000c46f      0x822 build/debug/motor_control.o
+ .debug_info    0x0000cc91      0x55a build/debug/port.o
+ .debug_info    0x0000d1eb     0x27a8 build/debug/queue.o
+ .debug_info    0x0000f993      0x962 build/debug/stm32f4xx_hal.o
+ .debug_info    0x000102f5      0xe93 build/debug/stm32f4xx_hal_adc.o
+ .debug_info    0x00011188      0xf65 build/debug/stm32f4xx_hal_cortex.o
+ .debug_info    0x000120ed      0xad8 build/debug/stm32f4xx_hal_dma.o
+ .debug_info    0x00012bc5      0x73a build/debug/stm32f4xx_hal_gpio.o
+ .debug_info    0x000132ff     0x3816 build/debug/stm32f4xx_hal_i2c.o
+ .debug_info    0x00016b15      0x469 build/debug/stm32f4xx_hal_msp.o
+ .debug_info    0x00016f7e     0x1c1c build/debug/stm32f4xx_hal_pcd.o
+ .debug_info    0x00018b9a      0x6f9 build/debug/stm32f4xx_hal_pcd_ex.o
+ .debug_info    0x00019293      0xac2 build/debug/stm32f4xx_hal_rcc.o
+ .debug_info    0x00019d55     0x3c4c build/debug/stm32f4xx_hal_tim.o
+ .debug_info    0x0001d9a1     0x1ad7 build/debug/stm32f4xx_hal_tim_ex.o
+ .debug_info    0x0001f478     0x401f build/debug/stm32f4xx_hal_uart.o
+ .debug_info    0x00023497      0xbcc build/debug/stm32f4xx_it.o
+ .debug_info    0x00024063     0x1e79 build/debug/stm32f4xx_ll_usb.o
+ .debug_info    0x00025edc      0x171 build/debug/sysmem.o
+ .debug_info    0x0002604d      0x553 build/debug/system_stm32f4xx.o
+ .debug_info    0x000265a0     0x307f build/debug/tasks.o
+ .debug_info    0x0002961f     0x1000 build/debug/tim.o
+ .debug_info    0x0002a61f     0x1b14 build/debug/timers.o
+ .debug_info    0x0002c133      0xd48 build/debug/usart.o
+ .debug_info    0x0002ce7b      0x790 build/debug/usb_device.o
+ .debug_info    0x0002d60b     0x1775 build/debug/usbd_cdc.o
+ .debug_info    0x0002ed80      0x9c1 build/debug/usbd_cdc_if.o
+ .debug_info    0x0002f741     0x210d build/debug/usbd_conf.o
+ .debug_info    0x0003184e     0x123f build/debug/usbd_core.o
+ .debug_info    0x00032a8d     0x1456 build/debug/usbd_ctlreq.o
+ .debug_info    0x00033ee3      0x5dd build/debug/usbd_desc.o
+ .debug_info    0x000344c0      0x8f6 build/debug/usbd_ioreq.o
+ .debug_info    0x00034db6       0x30 build/debug/startup_stm32f411xe.o
 
 .debug_abbrev   0x00000000     0x6c70
  .debug_abbrev  0x00000000      0x210 build/debug/adc.o

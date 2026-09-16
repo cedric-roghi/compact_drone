@@ -113,16 +113,16 @@ volatile uint32_t g_last_rc_tick = 0;
 
 volatile uint32_t g_uart_error_count = 0;
 
-#define ROLL_KP   5.0f
+#define ROLL_KP   15.0f
 #define ROLL_KI   0.0f
 #define ROLL_KD   0.0f
 
-#define PITCH_KP  5.0f
+#define PITCH_KP  15.0f
 #define PITCH_KI  0.0f
 #define PITCH_KD  0.0f
 
 #define YAW_KP    2.0f
-#define YAW_KI    0.0f
+#define YAW_KI    0.2f
 #define YAW_KD    0.01f
 
 #define SERVO_PID_OUTPUT_LIMIT  1000.0f
