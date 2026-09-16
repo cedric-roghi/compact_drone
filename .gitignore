@@ -52,6 +52,8 @@
 *.stl
 
 *.vscode
-*.cache'
+.vscode
+.cache
+*.cache
 
 Mechanical/stlExports/
