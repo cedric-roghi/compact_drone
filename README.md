@@ -1,6 +1,20 @@
 # compact_drone
 compact contra rotating drone
 
+Progress Update (17/09/26):
+- I have been making further tuning and tweaking to the PID gains.
+- Built a simple landing gear system out of wood and a 3D printed adapter to screw onto the drone frame.
+- I have got some first flight attempts with the drone hopping around the garden in a semi-controlled way.
+
+https://github.com/user-attachments/assets/63424fa8-df9c-4474-a59d-4073fd4611da
+
+Progress Update (09/09/26):
+- The yaw controls are working. I have found some PID gains that seem stable at low and high rotor speeds. I am planning on making a PyQT application to adjust flight controller settings without flashing the microcontroller.
+- I used hot glue to fix the servo motors more securely and printed some new link rods to reduce play in the swash-plate.
+- The swash-plate currently has too much play where the drone cannot correct error when its too small and leads to uncontrollable oscillation.
+
+https://github.com/user-attachments/assets/415317f5-2f4a-4eaa-9d52-048ebe863607
+
 ## Table of Contents
 - [Requirements](#requirements)
 - [Rationale](#rationale)
@@ -42,12 +56,7 @@ Atlantique 2 sonar buoys launcher.
     - Same MCU I used for my turret project. Its fast, powerful, and has many timers for pwm output. Since I used it for a previous turret project it makes the PCB development for the drone much faster.
     - Another great advantage of this MCU is that it can do up to 100MHz clock speed which gives me plenty of headroom for "high speed"(relative term) communications like UART or I2C, without preempting my critical FreeRTOS tasks.
 
-Progress Update (09/09/26):
-- The yaw controls are working. I have found some PID gains that seem stable at low and high rotor speeds. I am planning on making a PyQT application to adjust flight controller settings without flashing the microcontroller.
-- I used hot glue to fix the servo motors more securely and printed some new link rods to reduce play in the swash-plate.
-- The swash-plate currently has too much play where the drone cannot correct error when its too small and leads to uncontrollable oscillation.
 
-https://github.com/user-attachments/assets/415317f5-2f4a-4eaa-9d52-048ebe863607
 
 Below are some pictures of the PCB and 3D design to be printed.
 ![Picture of Kicad PCB](/Pictures/KiCADPCBPrototypeV1.png)
