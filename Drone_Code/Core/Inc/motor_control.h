@@ -5,9 +5,9 @@
 
 // Motor pulse width in timer ticks (Configured for a 1 MHz timer clock)
 // This gives a 1 microsecond resolution per tick, yielding 1000 steps of precision!
-#define SERVO_MIN_PULSE_TICKS 1200   // 60 degrees (90° - 30°)
+#define SERVO_MIN_PULSE_TICKS 1000   // 60 degrees (90° - 30°)
 #define SERVO_MID_PULSE_TICKS 1500   // 90 degrees (Center)
-#define SERVO_MAX_PULSE_TICKS 1800   // 120 degrees (90° + 30°)
+#define SERVO_MAX_PULSE_TICKS 2000   // 120 degrees (90° + 30°)
 
 #define ESC_MIN_PULSE_TICKS 16000   // 1.0ms pulse (0%)
 #define ESC_MAX_PULSE_TICKS 32000   // 2.0ms pulse (100%)

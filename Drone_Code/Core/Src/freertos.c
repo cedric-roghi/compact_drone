@@ -34,6 +34,7 @@
 #include "motor_control.h"
 #include <stdarg.h>
 #include "icm42605.h"
+#include "mmc5603nj.h"
 #include "imu_math.h"
 #include "lpf.h"
 /* USER CODE END Includes */
@@ -57,6 +58,8 @@
 #define MAX_PITCH 30 // degrees absolute value so -30 to 30
 #define MAX_ROLL 30  // degrees absolute value so -30 to 30
 #define MAX_YAW 200    // degrees per second
+
+#define LPF_CUTOFF 25.0f
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -112,18 +115,22 @@ volatile uint32_t g_last_rc_tick = 0;
 #define RC_FAILSAFE_TIMEOUT_MS 500U
 
 volatile uint32_t g_uart_error_count = 0;
+volatile uint32_t g_mag_error_count = 0;
 
-#define ROLL_KP   15.0f
-#define ROLL_KI   0.0f
+#define ROLL_TRIM_TICKS -100
+#define PITCH_TRIM_TICKS 0
+
+#define ROLL_KP   9.0f
+#define ROLL_KI   0.5f
 #define ROLL_KD   0.0f
 
-#define PITCH_KP  15.0f
-#define PITCH_KI  0.0f
+#define PITCH_KP  9.0f
+#define PITCH_KI  0.5f
 #define PITCH_KD  0.0f
 
-#define YAW_KP    2.0f
-#define YAW_KI    0.2f
-#define YAW_KD    0.01f
+#define YAW_KP    2.5f
+#define YAW_KI    0.5f
+#define YAW_KD    0.1f
 
 #define SERVO_PID_OUTPUT_LIMIT  1000.0f
 #define YAW_PID_OUTPUT_LIMIT    1200.0f
@@ -160,6 +167,7 @@ extern TIM_HandleTypeDef htim1, htim2;  // Defined in tim.c
 extern I2C_HandleTypeDef hi2c1;
 
 ICM42605_t g_imu;
+MMC5603NJ_t g_mag;
 IMU_Attitude_t g_attitude;
 
 char usb_output_buffer[256];
@@ -303,8 +311,8 @@ void StartDefaultTask(void *argument)
 void StartServoTask(void *argument)
 {
   // Initialize servos
-  motor_Init(&spitch, SERVO_MID_PULSE_TICKS, SERVO_MIN_PULSE_TICKS, SERVO_MAX_PULSE_TICKS, &htim1, TIM_CHANNEL_1);
-  motor_Init(&sroll, SERVO_MID_PULSE_TICKS, SERVO_MIN_PULSE_TICKS, SERVO_MAX_PULSE_TICKS, &htim1, TIM_CHANNEL_2);
+  motor_Init(&spitch, SERVO_MID_PULSE_TICKS + PITCH_TRIM_TICKS, SERVO_MIN_PULSE_TICKS + PITCH_TRIM_TICKS, SERVO_MAX_PULSE_TICKS + PITCH_TRIM_TICKS, &htim1, TIM_CHANNEL_1);
+  motor_Init(&sroll, SERVO_MID_PULSE_TICKS + ROLL_TRIM_TICKS, SERVO_MIN_PULSE_TICKS + ROLL_TRIM_TICKS, SERVO_MAX_PULSE_TICKS + ROLL_TRIM_TICKS, &htim1, TIM_CHANNEL_2);
 
   // Initialize ESCs
   motor_Init(&rotorup, ESC_MIN_PULSE_TICKS, ESC_MIN_PULSE_TICKS, ESC_MAX_PULSE_TICKS, &htim2, TIM_CHANNEL_1);
@@ -438,7 +446,19 @@ void startImuTask(void *argument)
         osThreadExit();
     }
 
-    usb_send("IMU initialized successfully\r\n");
+
+    uint8_t id = 0;
+    HAL_I2C_Mem_Read(&hi2c1, MMC5603NJ_I2C_ADDR, 0x39, I2C_MEMADD_SIZE_8BIT, &id, 1, 100);
+    usb_send("MMC5603NJ Product ID: 0x%02X (expect 0x10)\r\n", id);
+    // Initialize Magnetometer
+    int mag_status = mmc5603nj_init(&g_mag, &hi2c1);
+    osDelay(20);
+    if (mag_status < 0)
+    {
+        usb_send("IMU Task Error: mmc5603nj_init failed code %d\r\n", mag_status);
+    }
+
+    usb_send("Sensors initialized successfully\r\n");
 
     // Initialize attitude filter
     imu_math_init(&g_attitude, 0.98f);
@@ -452,23 +472,41 @@ void startImuTask(void *argument)
         tick += pdMS_TO_TICKS(IMU_TASK_PERIOD_MS);
         vTaskDelayUntil(&tick, pdMS_TO_TICKS(IMU_TASK_PERIOD_MS));
 
-        // Read IMU
+        // Read IMU and Magnetometer
         if (icm42605_get_agt(&g_imu) == 1)
         {
-            imu_math_update(&g_attitude, g_imu.acc[0], g_imu.acc[1], g_imu.acc[2], g_imu.gyr[0], g_imu.gyr[1], g_imu.gyr[2], DT_SECONDS);
+            mmc5603nj_read(&g_mag);
+
+            if (mmc5603nj_read(&g_mag) != 1)
+            {
+                g_mag_error_count++;   // add as a static/file-scope counter
+                // Optionally report once, not every loop:
+                // usb_send("MMC5603NJ read failed\r\n");
+            }
+
+            // Update with 9-axis data
+            imu_math_update(&g_attitude, 
+                            g_imu.acc[0], g_imu.acc[1], g_imu.acc[2], 
+                            g_imu.gyr[0], g_imu.gyr[1], g_imu.gyr[2], 
+                            g_mag.mag_x, g_mag.mag_y, g_mag.mag_z, 
+                            DT_SECONDS);
 
             // Debug output
             print_counter++;
             if (print_counter >= 100)
             {
                 print_counter = 0;
-                usb_send("Roll: %d | Pitch: %d | Yaw: %d\r\n", (int)g_attitude.roll, (int)g_attitude.pitch, (int)g_attitude.yaw);
+                // usb_send("Roll: %d | Pitch: %d | Yaw: %d\r\n", (int)g_attitude.roll, (int)g_attitude.pitch, (int)g_attitude.yaw);
+                usb_send("Yaw: %d | Mag X: %d | Mag Y: %d | Mag Z: %d\r\n", 
+         (int)g_attitude.yaw, 
+         (int)(g_mag.mag_x * 1000.0f), 
+         (int)(g_mag.mag_y * 1000.0f), 
+         (int)(g_mag.mag_z * 1000.0f));
             }
 
             // Send latest attitude
             if (osMessageQueuePut(imuAttitudeQueueHandle, &g_attitude, 0, 0) != osOK)
             {
-                // Queue depth = 1. Discard old attitude and replace it with newest.
                 IMU_Attitude_t discarded;
                 osMessageQueueGet(imuAttitudeQueueHandle, &discarded, NULL, 0);
                 osMessageQueuePut(imuAttitudeQueueHandle, &g_attitude, 0, 0);
@@ -494,12 +532,12 @@ void StartPidTask(void *argument)
     PID_Controller_t yaw_pid;
 
     LPF_t yaw_gyro_lpf;
-    lpf_init(&yaw_gyro_lpf, 30.0f, DT_SECONDS);
+    lpf_init(&yaw_gyro_lpf, LPF_CUTOFF, DT_SECONDS);
 
     LPF_t roll_gyro_lpf;
     LPF_t pitch_gyro_lpf;
-    lpf_init(&roll_gyro_lpf, 30.0f, DT_SECONDS);
-    lpf_init(&pitch_gyro_lpf, 30.0f, DT_SECONDS);
+    lpf_init(&roll_gyro_lpf, LPF_CUTOFF, DT_SECONDS);
+    lpf_init(&pitch_gyro_lpf, LPF_CUTOFF, DT_SECONDS);
 
     pid_init(&roll_pid, ROLL_KP, ROLL_KI, ROLL_KD, SERVO_PID_OUTPUT_LIMIT);
     pid_init(&pitch_pid, PITCH_KP, PITCH_KI, PITCH_KD, SERVO_PID_OUTPUT_LIMIT);
@@ -508,6 +546,10 @@ void StartPidTask(void *argument)
     // Safety state tracker: prevents arming if throttle is not at zero
     static uint8_t throttle_lockout = 0;
     uint8_t prev_armed_state = 0;
+
+    // Heading lock state variables
+    float target_heading = 0.0f;
+    uint8_t heading_lock_active = 0;
 
     usb_send("PID Task started\r\n");
 
@@ -572,7 +614,9 @@ void StartPidTask(void *argument)
             roll_pid.initialized = 0;
             pitch_pid.initialized = 0;
             yaw_pid.initialized = 0;
-
+            
+            heading_lock_active = 0; // Reset heading lock when disarmed
+            
             continue;
         }
 
@@ -580,22 +624,48 @@ void StartPidTask(void *argument)
         float roll_error = current_setpoint.roll_setpoint - current_attitude.roll;
         float pitch_error = current_setpoint.pitch_setpoint - current_attitude.pitch;
 
-        // Filter roll and pitch gyros for the D-term (using g_imu.gyr[0] for roll, g_imu.gyr[1] for pitch)
+        // Filter roll and pitch gyros for the D-term
         float filtered_roll_gyro = lpf_update(&roll_gyro_lpf, g_imu.gyr[0]);
         float filtered_pitch_gyro = lpf_update(&pitch_gyro_lpf, g_imu.gyr[1]);
 
-        // If using PD control for roll/pitch where D acts on gyro rate:
-        // P-term uses angle error, D-term uses -filtered_gyro
-        // (Alternatively, you can pass error into pid_compute if your pid_compute handles D via error difference, 
-        // but passing the filtered gyro into a custom rate-damping term is cleaner for swashplates).
-        
         float roll_correction = (ROLL_KP * roll_error) - (ROLL_KD * filtered_roll_gyro);
         float pitch_correction = (PITCH_KP * pitch_error) - (PITCH_KD * filtered_pitch_gyro);
 
         float filtered_yaw_gyro = lpf_update(&yaw_gyro_lpf, g_imu.gyr[2]);
-        // Yaw rate using direct gyroscope Z-axis reading to avoid filter delay and noise amplification
-        float yaw_error = current_setpoint.yaw_rate_setpoint - filtered_yaw_gyro;
+        
+        // --- HYBRID HEADING HOLD LOGIC ---
+        float yaw_error = 0.0f;
+        
+        // A small deadband (e.g., 5.0 deg/s) ensures slight stick noise doesn't break the lock
+        if (current_setpoint.yaw_rate_setpoint > 5.0f || current_setpoint.yaw_rate_setpoint < -5.0f) {
+            // Pilot is actively commanding yaw: use rate control
+            yaw_error = current_setpoint.yaw_rate_setpoint - filtered_yaw_gyro;
+            heading_lock_active = 0; 
+        } else {
+            // Stick is centered: lock heading
+            if (!heading_lock_active) {
+                target_heading = current_attitude.yaw;
+                heading_lock_active = 1;
+            }
+            
+            // Calculate shortest path error (-180 to 180 degrees)
+            float heading_error = target_heading - current_attitude.yaw;
+            if (heading_error > 180.0f) heading_error -= 360.0f;
+            if (heading_error < -180.0f) heading_error += 360.0f;
+
+            // Outer loop maps angle error to a target turn rate. 
+            // 2.5f is the P-gain for the outer angle loop (tune as needed).
+            float desired_correction_rate = heading_error * 2.5f; 
+            
+            // Limit the maximum correction rate so it doesn't snap back too violently
+            if (desired_correction_rate > 90.0f) desired_correction_rate = 90.0f;
+            if (desired_correction_rate < -90.0f) desired_correction_rate = -90.0f;
+
+            yaw_error = desired_correction_rate - filtered_yaw_gyro;
+        }
+
         float yaw_correction = pid_compute(&yaw_pid, yaw_error, DT_SECONDS);
+        // ---------------------------------
 
         // Calculate throttle bounds
         if (current_setpoint.throttle < 0.0f) current_setpoint.throttle = 0.0f;
@@ -654,8 +724,11 @@ void StartPidTask(void *argument)
         down_motor_ticks = down_raw;
 
         // Servo output
-        int32_t pitch_servo_ticks = SERVO_MID_PULSE_TICKS + (int32_t)pitch_correction;
-        int32_t roll_servo_ticks = SERVO_MID_PULSE_TICKS + (int32_t)roll_correction;
+        // int32_t pitch_servo_ticks = SERVO_MID_PULSE_TICKS + (int32_t)pitch_correction;
+        // int32_t roll_servo_ticks = SERVO_MID_PULSE_TICKS + (int32_t)roll_correction;
+
+        int32_t pitch_servo_ticks = spitch.default_pulse_tick + (int32_t)pitch_correction;
+        int32_t roll_servo_ticks = sroll.default_pulse_tick + (int32_t)roll_correction;
 
         // Clamp servos
         if (pitch_servo_ticks < (int32_t)SERVO_MIN_PULSE_TICKS) pitch_servo_ticks = SERVO_MIN_PULSE_TICKS;
