@@ -1,6 +1,12 @@
 # compact_drone
 compact contra rotating drone
 
+Progress Update (15/10/26):
+- Tolerances have been tightened. Best method so far is to print everything very tight and to sand down parts with 1000 grit.
+- Used Mistral AI to review my code and suggest adding a phase offset to the rotor controls. I had been focusing too much on drone control systems that I had overlooked critical physical effects of helicopter mechanical control systems. A phase offset of -25 degrees seems to remove most toilet bowl effect I was seeing.
+
+https://github.com/user-attachments/assets/04978339-0f8a-490a-9869-5cce7a8ede1a
+
 Progress Update (17/09/26):
 - I have been making further tuning and tweaking to the PID gains.
 - Built a simple landing gear system out of wood and a 3D printed adapter to screw onto the drone frame.
